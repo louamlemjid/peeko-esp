@@ -9,3 +9,4 @@ extern WebServer server;
 
 void webInit();
 void saveWiFiConfig(String ssid, String password, String code);
+bool connectToWiFi(const String& ssid, const String& password);

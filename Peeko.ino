@@ -1,4 +1,3 @@
-#include <WiFi.h>
 #include <EEPROM.h>
 #include "web.h"
 #include "display.h"
@@ -6,8 +5,10 @@
 #include "app_state.h"
 #include "animation.h"
 #include <time.h>
-#include "touchsensor.h"
+#include "EyesTouchSensor.h"
 #include "sound.h"
+#include <FS.h>
+#include <SPIFFS.h>
 
 Sound peekoSound;
 
@@ -26,8 +27,19 @@ String peekoName = "";
 
 unsigned long lastFetch = 0;
 
+//==== PeekoDoro ====
+PeekoDoro peekoDoro;
+
 // ==== Touch =====
 #define TOUCH_PIN 10
+PeekoMoodSensor peekoMoodSensor(TOUCH_PIN);
+MenuTouchSensor menuTouchSensor(TOUCH_PIN);
+AnimationTouchSensor animationTouchSensor(TOUCH_PIN);
+ClockTouchSensor clockTouchSensor(TOUCH_PIN);
+WeatherTouchSensor weatherTouchSensor(TOUCH_PIN);
+PeekoDoroTouchSensor peekoDoroTouchSensor(TOUCH_PIN);
+MessageTouchSensor messageTouchSensor(TOUCH_PIN);
+
 // ===== TIME ======
 #define GMT_OFFSET_SEC  3600   // +1 hour
 #define DAYLIGHT_OFFSET_SEC 0
@@ -66,20 +78,29 @@ void displayMoodCallback(String mood) {
 // ===== Setup =====
 void setup() {
     Serial.begin(115200);
-    touchBegin(TOUCH_PIN);
+    peekoMoodSensor.begin();
     pinMode(SPEAKER_PIN, OUTPUT);
      
     displayInit();
     EEPROM.begin(EEPROM_SIZE);
-
+    
+    
     // Read Wi-Fi and Peeko code from EEPROM
     ssid = readStringFromEEPROM(EEPROM_ADDR_SSID, MAX_LEN);
     password = readStringFromEEPROM(EEPROM_ADDR_PASS, MAX_LEN);
     peekoCode = readStringFromEEPROM(EEPROM_ADDR_CODE, MAX_LEN);
     
-
+    
     displayWelcome();
-    delay(2000);
+    delay(7000);
+    if (!SPIFFS.begin(true)) {
+        displayWifi("SPIFFS Mount Fail");
+        delay(1000);
+        while (1); // Halt because we can't continue without storage
+    }
+    
+    displayWifi("SPIFFS OK");
+    delay(1000);
     if (ssid.length() > 0 && password.length() > 0) {
         // Display connecting message
         displayWifiIcon();
@@ -96,6 +117,7 @@ void setup() {
         if (WiFi.status() == WL_CONNECTED) {
 
             displayWifi("Wi-Fi Connected!");
+            // fetchAnimationLink(peekoCode);
             initTime();
             fetchPeekoMood(peekoCode, displayMoodCallback);
             delay(2000); 
@@ -135,12 +157,12 @@ void loop() {
     
     // Fetch Peeko mood every 20 seconds
     if (millis() - lastFetch > 30000 && peekoCode.length() > 0 && WiFi.status() == WL_CONNECTED) {
-        fetchPeekoMood(peekoCode, displayMoodCallback);
+        fetchIncomingMessage(peekoCode);
         lastFetch = millis();
     }
 
     loopDisplay(); 
     peekoSound.update();
-    touchUpdate();
-    
+    // peekoMoodSensor.update();
+    peekoDoro.update();
 }

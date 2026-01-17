@@ -5,7 +5,7 @@
 // #define EEPROM_ADDR_PASS 64
 // #define EEPROM_ADDR_CODE 128
 #include <EEPROM.h>
-
+#include "fetch.h" 
 
 const char HTML_PAGE[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
@@ -36,6 +36,29 @@ const char HTML_PAGE[] PROGMEM = R"rawliteral(
 
 #include "app_state.h"
 #include "display.h"
+#include <WiFi.h>
+
+bool connectToWiFi(const String& ssid, const String& password) {
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid.c_str(), password.c_str());
+
+  Serial.print("Connecting to WiFi");
+  unsigned long startAttemptTime = millis();
+
+  while (WiFi.status() != WL_CONNECTED &&
+         millis() - startAttemptTime < 15000) { // 15s timeout
+    delay(500);
+    Serial.print(".");
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    displayWifi("Wi-Fi Connected!");
+    return true;
+  }
+
+  Serial.println("\nWiFi connection failed");
+  return false;
+}
 
 
 WebServer server(80);
@@ -67,17 +90,30 @@ void saveWiFiConfig(String ssid, String password, String code) {
 
 
 void webInit() {
-  server.on("/", []() { server.send(200, "text/html", HTML_PAGE); });
+  server.on("/", []() {
+    server.send(200, "text/html", HTML_PAGE);
+  });
 
   server.on("/setup", []() {
     if (server.hasArg("ssid") && server.hasArg("password") && server.hasArg("code")) {
+
       String ssid = server.arg("ssid");
       String password = server.arg("password");
       String code = server.arg("code");
-      messageStart(ssid+password+code);
+
+      messageStart("Wifi credentials",ssid + password + code);
       saveWiFiConfig(ssid, password, code);
 
-      server.send(200, "text/html", "<h2>Saved! Reboot to connect...</h2>");
+      // 🔑 Connect before createPeeko
+      if (connectToWiFi(ssid, password)) {
+        createPeeko(code);
+        server.send(200, "text/html",
+          "<h2>WiFi connected & device registered! You can reboot.</h2>");
+      } else {
+        server.send(500, "text/html",
+          "<h2>WiFi connection failed. Check credentials.</h2>");
+      }
+
     } else {
       server.send(400, "text/html", "<h2>Missing fields</h2>");
     }
@@ -85,3 +121,4 @@ void webInit() {
 
   server.begin();
 }
+

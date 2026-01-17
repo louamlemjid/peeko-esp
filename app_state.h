@@ -1,11 +1,13 @@
 #pragma once
 #include <Arduino.h>
+#define IMAGE_FRAME_SIZE 1024
 
 enum MessageState {
   MSG_IDLE,
   MSG_ICON,
   MSG_TYPING,
-  MSG_WAIT
+  MSG_WAIT,
+  MSG_IMAGE
 };
 
 enum DisplayMode {
@@ -13,7 +15,10 @@ enum DisplayMode {
   MODE_MESSAGE,
   MODE_EYES,
   MODE_CLOCK,
-  MODE_MENU
+  MODE_WEATHER,
+  MODE_MENU,
+  MODE_WIFI,
+  MODE_PEEKODORO
 };
 
 extern MessageState msgState;
@@ -23,7 +28,7 @@ extern int msgIndex;
 extern DisplayMode currentMode;
 extern unsigned long stateTimer;
 
-void messageStart(const String& text);
+void messageStart(const String& from, const String& content);
 void messageUpdate();
 void loopDisplay();
 void enterMode(DisplayMode mode);

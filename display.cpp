@@ -3,20 +3,37 @@
 #include <time.h>
 #include "welcome.h"
 #include "wifiicon.h"
+#include <FS.h>
+#include <SPIFFS.h>
+#include "fetch.h"
+#include "peekoDoro.h"
+#include "app_state.h"
+
+extern uint8_t incomingImageBuffer[IMAGE_FRAME_SIZE];
+extern bool incomingImageReady;
+
+extern PeekoDoro peekoDoro;
 bool blinkColon = true;
 
 const char* menuItems[] = {
     " ",
   "Animation",
   "Clock",
+  "Weather",
   "PeekoDoro",
-  "Eyes"
+  "Eyes",
+  "Wifi"
 };
+bool skipAnimation = false;
 
-const int menuCount = sizeof(menuItems) / sizeof(menuItems[0]);
+int menuCount = sizeof(menuItems) / sizeof(menuItems[0]);
 int menuIndex = 0;                 // currently selected (BIG)
 unsigned long menuTimer = 0;
 
+float currentTemp = 0.0;
+int currentHumidity = 0;
+unsigned long lastWeatherUpdate = 0;
+const unsigned long weatherInterval = 600000; // Update every 10 minutes
 
 // Define global objects here **only once**
 Adafruit_SSD1306 display(128, 64, &Wire, -1);
@@ -49,6 +66,76 @@ void animationMood(){
     eyes.anim_laugh();
     eyes.update();
 }
+// These stay in memory between function calls
+static File rootDir;
+static File currentAnimFile;
+static int currentFrame = 0;
+static unsigned long fileStartTime = 0;
+static unsigned long lastFrameMillis = 0;
+
+void playSpiffsAnimations() {
+    unsigned long now = millis();
+
+    // 1. Check for Skip Request or Timeout (5 seconds)
+    if (skipAnimation || (currentAnimFile && (now - fileStartTime > 5000))) {
+        if (currentAnimFile) currentAnimFile.close();
+        currentAnimFile = File(); // Reset file object
+        skipAnimation = false;    // Reset skip flag
+        currentFrame = 0;
+        // Proceed to next file logic below
+    }
+
+    // 2. If no file is open, find the next valid "anim_" file
+    if (!currentAnimFile) {
+        if (!rootDir) rootDir = SPIFFS.open("/");
+        
+        File nextFile = rootDir.openNextFile();
+        
+        // If we reached the end of SPIFFS, start over
+        if (!nextFile) {
+            rootDir.rewindDirectory();
+            return; 
+        }
+
+        String name = nextFile.name();
+        if (name.startsWith("/anim_") || name.startsWith("anim_")) {
+            currentAnimFile = nextFile;
+            fileStartTime = now;
+            currentFrame = 0;
+        } else {
+            nextFile.close();
+            return; // Skip non-animation files
+        }
+    }
+
+    // 3. Frame Rate Control (Draw 1 frame every 70ms)
+    if (now - lastFrameMillis >= 90) {
+        lastFrameMillis = now;
+
+        int fileSize = currentAnimFile.size();
+        int totalFrames = fileSize / 1024;
+        if (totalFrames == 0) return;
+
+        float realStep = (float)fileSize / (float)totalFrames;
+        
+        // Calculate position with your +3 byte nudge
+        long frameStart = (long)(currentFrame * realStep) + 3;
+        currentAnimFile.seek(frameStart);
+
+        uint8_t frameBuffer[1024];
+        if (currentAnimFile.read(frameBuffer, 1024) == 1024) {
+            display.clearDisplay();
+            display.drawBitmap(0, 0, frameBuffer, 128, 64, SSD1306_WHITE);
+            display.display();
+        }
+
+        // Advance frame counter
+        currentFrame++;
+        if (currentFrame >= totalFrames) {
+            currentFrame = 0; // Loop the same file until 5s is up or skip is pressed
+        }
+    }
+}
 void moodToggle() {
     // Find current index
     uint8_t index = 0;
@@ -75,27 +162,114 @@ void displayClock() {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) return;
 
-  // Example temperature (replace with real sensor value)
-  int temperature = 26;
-
   char timeBuf[6];
   sprintf(timeBuf, "%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
 
   char tempBuf[24];
-  sprintf(tempBuf, "Temperature: %.1d C", temperature);
+  sprintf(tempBuf, "%02d / %02d / %02d", timeinfo.tm_mday,timeinfo.tm_mon + 1,timeinfo.tm_year + 1900);
 
   display.clearDisplay();
 
   // ---- TIME (BIG) ----
   display.setTextSize(3);
   display.setTextColor(SSD1306_WHITE);
-  display.setCursor(15, 5);
+  display.setCursor(22, 5);
   display.print(timeBuf);
 
-  // ---- TEMPERATURE (SMALL) ----
+  // ---- date (SMALL) ----
   display.setTextSize(1.8);
-  display.setCursor(0, 48);
+  display.setCursor(22, 48);
   display.print(tempBuf);
+
+  display.display();
+}
+
+void displayPeekoDoro() {
+
+  char workBuf[20];
+  sprintf(workBuf, "Work  %02d:%02d",peekoDoro.getWorkPeriod() / 60 , peekoDoro.getWorkPeriod() % 60);
+
+  char breakBuf[24];
+  sprintf(breakBuf, "Break  %02d:%02d", peekoDoro.getBreakPeriod() / 60,peekoDoro.getBreakPeriod() % 60);
+
+    char setsBuf[5];
+    sprintf(setsBuf,"#%02d", peekoDoro.getSets());
+
+  display.clearDisplay();
+
+
+  if(peekoDoro.getWorkPeriod() > 0){
+     // ---- TIME (BIG) ----
+  display.setTextSize(3);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(22, 0);
+  display.print(workBuf);
+
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(105,10);
+    display.print(setsBuf);
+
+  // ---- date (SMALL) ----
+  display.setTextSize(1.8);
+  display.setCursor(25, 55);
+  display.print(breakBuf);
+
+  }
+  else{
+    display.setTextSize(3);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(5, 0);
+  display.print(breakBuf);
+
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(105,10);
+    display.print(setsBuf);
+
+  // ---- date (SMALL) ----
+  display.setTextSize(1.8);
+  display.setCursor(25, 55);
+  display.print(workBuf);
+  }
+ 
+
+  display.display();
+}
+
+void displayWeather() {
+  // Update weather only if interval has passed
+  if (millis() - lastWeatherUpdate > weatherInterval || lastWeatherUpdate == 0) {
+    updateWeather();
+    lastWeatherUpdate = millis();
+  }
+
+  char tempBuf[10];
+  char humBuf[10];
+  
+  // Format strings: "13.1 C" and "76 %"
+  dtostrf(currentTemp, 2, 1, tempBuf); 
+  sprintf(humBuf, "%d %%", currentHumidity);
+
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+
+  // ---- TEMPERATURE (BIG) ----
+  display.setTextSize(3);
+  display.setCursor(20, 5);
+  display.print(tempBuf);
+  display.setTextSize(1);
+  display.print(" C");
+
+  // ---- HUMIDITY (SMALL) ----
+  display.setTextSize(2);
+  display.setCursor(35, 45);
+  display.print(humBuf);
+  
+  // Draw a small icon or label
+  display.setTextSize(1);
+  display.setCursor(85, 48);
+  display.print("HUM");
 
   display.display();
 }
@@ -117,10 +291,10 @@ void moodUpdate(String mood){
     else if (selectedMood == "TIRED") moodValue = TIRED;
     else if (selectedMood == "ANGRY") moodValue = ANGRY;
 
-    // eyes.setMood(moodValue); 
+    eyes.setMood(moodValue); 
     // Serial.print("Mood set to: ");
     // Serial.println(selectedMood);
-    // eyes.update();
+    eyes.update();
 }
 
 void drawMessageIcon() {
@@ -179,6 +353,33 @@ void displayWifi(const String& text){
     display.setTextColor(SSD1306_WHITE);
     display.setCursor(10, 5);
     display.print(wifiBuf);
+
+    display.display();
+}
+
+void displayIncomigMessage(const String& from,const String& content){
+    char fromBuf[20];
+    from.toCharArray(fromBuf, sizeof(fromBuf));
+
+    char bodyBuf[50];
+    content.toCharArray(bodyBuf, sizeof(bodyBuf));
+
+    display.clearDisplay();
+
+    // ==== sender====
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(5, 5);
+    display.print(fromBuf);
+    display.print(" :");
+
+    // ==== body ====
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(5, 15);
+    display.print(bodyBuf);
+
+    display.drawRect(0, 0, 128, 64, SSD1306_WHITE);
 
     display.display();
 }
@@ -251,14 +452,31 @@ void displayMenu() {
 
 
 void updateMenu() {
-    unsigned long now = millis();
+    // unsigned long now = millis();
 
-    if (now - menuTimer >= 3000) {
-        menuTimer = now;
-        menuIndex = (menuIndex + 1) % menuCount;
+    // if (now - menuTimer >= 3000) {
+    //     menuTimer = now;
+    //     menuIndex = (menuIndex + 1) % menuCount;
         displayMenu();
-    }
+    // }
 }
+
+void drawIncomingImageIfAny() {
+    if (!incomingImageReady) return; // global flag
+
+    display.clearDisplay();
+    display.drawBitmap(
+        0,
+        0,
+        incomingImageBuffer, // global buffer
+        128,
+        64,
+        SSD1306_WHITE
+    );
+    display.display();
+}
+
+
 
 void displayTypeChar(char c) {
     display.print(c);
