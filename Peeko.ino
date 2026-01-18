@@ -9,6 +9,9 @@
 #include "sound.h"
 #include <FS.h>
 #include <SPIFFS.h>
+#include "updatePeeko.h"
+
+PeekoUpdate peekoUpdater;
 
 Sound peekoSound;
 
@@ -39,6 +42,7 @@ ClockTouchSensor clockTouchSensor(TOUCH_PIN);
 WeatherTouchSensor weatherTouchSensor(TOUCH_PIN);
 PeekoDoroTouchSensor peekoDoroTouchSensor(TOUCH_PIN);
 MessageTouchSensor messageTouchSensor(TOUCH_PIN);
+UpdaterTouchSensor updaterTouchSensor(TOUCH_PIN);
 
 // ===== TIME ======
 #define GMT_OFFSET_SEC  3600   // +1 hour
@@ -118,6 +122,7 @@ void setup() {
 
             displayWifi("Wi-Fi Connected!");
             // fetchAnimationLink(peekoCode);
+            peekoUpdater.loadInformations();
             initTime();
             fetchPeekoMood(peekoCode, displayMoodCallback);
             delay(2000); 

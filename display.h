@@ -27,3 +27,4 @@ void displayWeather();
 void displayPeekoDoro();
 void displayIncomigMessage(const String& from,const String& content);
 void drawIncomingImageIfAny();
+void displayAbout();

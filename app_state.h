@@ -18,7 +18,8 @@ enum DisplayMode {
   MODE_WEATHER,
   MODE_MENU,
   MODE_WIFI,
-  MODE_PEEKODORO
+  MODE_PEEKODORO,
+  MODE_ABOUT
 };
 
 extern MessageState msgState;

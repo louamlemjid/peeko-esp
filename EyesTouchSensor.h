@@ -5,6 +5,7 @@
 #include "display.h"
 #include "app_state.h"
 #include "peekoDoro.h"
+#include "updatePeeko.h"
 
 extern const char* menuItems[];
 extern int menuIndex;
@@ -12,6 +13,8 @@ extern bool skipAnimation;
 extern const int menuCount;
 extern PeekoDoro peekoDoro;
 extern MessageState msgState;
+
+extern PeekoUpdate peekoUpdater;
 
 class PeekoMoodSensor : public TouchSensor {
 public:
@@ -51,6 +54,8 @@ public:
       enterMode(MODE_WEATHER);
     } else if (itemStr == "PeekoDoro") {
       enterMode(MODE_PEEKODORO);
+    }else if (itemStr == "About") {
+      enterMode(MODE_ABOUT);
     }
   }
   void oneTouch() override {
@@ -104,6 +109,16 @@ public:
 
   void oneTouch() override {
     if(msgState == MSG_IDLE) enterMode(MODE_EYES);
+  }
+};
+
+class UpdaterTouchSensor : public TouchSensor {
+public:
+  UpdaterTouchSensor(int pin)
+    : TouchSensor(pin) {}
+
+  void oneTouch() override {
+    peekoUpdater.update();
   }
 };
 #endif

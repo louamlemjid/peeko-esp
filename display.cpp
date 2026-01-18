@@ -8,6 +8,9 @@
 #include "fetch.h"
 #include "peekoDoro.h"
 #include "app_state.h"
+#include "updatePeeko.h"
+
+extern PeekoUpdate peekoUpdater;
 
 extern uint8_t incomingImageBuffer[IMAGE_FRAME_SIZE];
 extern bool incomingImageReady;
@@ -22,7 +25,8 @@ const char* menuItems[] = {
   "Weather",
   "PeekoDoro",
   "Eyes",
-  "Wifi"
+  "Wifi",
+  "About"
 };
 bool skipAnimation = false;
 
@@ -450,6 +454,36 @@ void displayMenu() {
     display.display();
 }
 
+void displayAbout(){
+    char versionBuf[10];
+    char nameBuf[20];
+
+    dtostrf(peekoUpdater.getVersionNumber(),2,2,versionBuf);
+    peekoUpdater.getVersionName().toCharArray(nameBuf,sizeof(nameBuf));
+
+    display.clearDisplay();
+
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, 0);
+
+    display.println("Device Name");
+    display.setCursor(5,display.getCursorY()+2);
+    
+    display.println("Peeko");
+
+    display.println("Version Name");
+    display.setCursor(5,display.getCursorY()+2);
+    display.println(nameBuf);
+
+    display.println("Version Number");
+    display.setCursor(5,display.getCursorY()+2);
+    display.println(versionBuf);
+
+    display.println("Check for update ?");
+
+    display.display();
+}
 
 void updateMenu() {
     // unsigned long now = millis();

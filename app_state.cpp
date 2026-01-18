@@ -12,6 +12,7 @@ extern ClockTouchSensor clockTouchSensor;
 extern WeatherTouchSensor weatherTouchSensor;
 extern PeekoDoroTouchSensor peekoDoroTouchSensor;
 extern MessageTouchSensor messageTouchSensor;
+extern UpdaterTouchSensor updaterTouchSensor;
 
 MessageState msgState = MSG_IDLE;
 String messageFrom = "";
@@ -140,6 +141,11 @@ void loopDisplay() {
       webInit();
       currentMode = MODE_EYES;
           stateTimer = now;
+      break;
+    
+    case MODE_ABOUT:
+      displayAbout();
+      updaterTouchSensor.update();
       break;
   }
 }
