@@ -4,6 +4,9 @@
 #include "animation.h"
 #include "EyesTouchSensor.h"
 #include "web.h"
+#include "battery.h"
+
+extern Battery battery;
 
 extern PeekoMoodSensor peekoMoodSensor;
 extern MenuTouchSensor menuTouchSensor;
@@ -20,7 +23,7 @@ String messageContent = "";
 unsigned long msgTimer = 0;
 int msgIndex = 0;
 
-DisplayMode currentMode = MODE_ANIMATION;
+DisplayMode currentMode = MODE_EYES;
 unsigned long stateTimer = 0;
 
 void enterMode(DisplayMode mode) {
@@ -70,7 +73,7 @@ void toggleMode() {
 
 void loopDisplay() {
   unsigned long now = millis();
-
+  
   switch (currentMode) {
     case MODE_ANIMATION:
       // playFrames(); // loop through frames

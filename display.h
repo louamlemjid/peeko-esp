@@ -28,3 +28,6 @@ void displayPeekoDoro();
 void displayIncomigMessage(const String& from,const String& content);
 void drawIncomingImageIfAny();
 void displayAbout();
+void displayBattery(int level);
+void displayTouch();
+void displayLongTouch();

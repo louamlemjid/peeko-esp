@@ -9,7 +9,9 @@
 #include "peekoDoro.h"
 #include "app_state.h"
 #include "updatePeeko.h"
+#include "battery.h"
 
+extern Battery battery;
 extern PeekoUpdate peekoUpdater;
 
 extern uint8_t incomingImageBuffer[IMAGE_FRAME_SIZE];
@@ -184,8 +186,10 @@ void displayClock() {
   display.setTextSize(1.8);
   display.setCursor(22, 48);
   display.print(tempBuf);
-
+    
   display.display();
+
+  displayBattery(battery.getBatteryLevel());
 }
 
 void displayPeekoDoro() {
@@ -237,8 +241,15 @@ void displayPeekoDoro() {
   display.print(workBuf);
   }
  
+//  display.drawRect(117, 1, 11, 6, SSD1306_WHITE);
+//     display.drawFastVLine(119, 3, 2, SSD1306_WHITE);
+//     display.drawFastVLine(121, 3, 2, SSD1306_WHITE);
+//     display.drawFastVLine(123, 3, 2, SSD1306_WHITE);
+//     display.drawFastVLine(125, 3, 2, SSD1306_WHITE);
 
   display.display();
+
+  displayBattery(battery.getBatteryLevel());
 }
 
 void displayWeather() {
@@ -276,6 +287,8 @@ void displayWeather() {
   display.print("HUM");
 
   display.display();
+
+  displayBattery(battery.getBatteryLevel());
 }
 
 void displayWifiIcon(){
@@ -452,6 +465,8 @@ void displayMenu() {
     display.print(menuItems[next]);
 
     display.display();
+
+    displayBattery(battery.getBatteryLevel());
 }
 
 void displayAbout(){
@@ -481,6 +496,28 @@ void displayAbout(){
     display.println(versionBuf);
 
     display.println("Check for update ?");
+
+    display.display();
+
+    displayBattery(battery.getBatteryLevel());
+}
+void displayBattery(int level){
+
+    display.drawRect(117, 1, 11, 6, SSD1306_WHITE);
+    if(level >= 1) display.drawFastVLine(119, 3, 2, SSD1306_WHITE);
+    if(level >= 2) display.drawFastVLine(121, 3, 2, SSD1306_WHITE);
+    if(level >= 3) display.drawFastVLine(123, 3, 2, SSD1306_WHITE);
+    if(level >= 4) display.drawFastVLine(125, 3, 2, SSD1306_WHITE);
+    display.display();
+}
+
+void displayTouch(){
+    display.drawCircle(3, 3, 1, SSD1306_WHITE);
+    display.display();
+}
+
+void displayLongTouch(){
+    display.drawCircle(3, 3, 3, SSD1306_WHITE);
 
     display.display();
 }

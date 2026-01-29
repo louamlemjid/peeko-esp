@@ -8,7 +8,7 @@
 #include <FS.h>
 #include <SPIFFS.h>
 #include <WiFiClientSecure.h>
-
+#include "secrets.h"
 
 
 extern uint8_t incomingImageBuffer[IMAGE_FRAME_SIZE];
@@ -103,6 +103,9 @@ String fetchAnimationLink(const String& peekoCode) {
     String url = "https://peeko-nine.vercel.app/api/v1/peeko/" + peekoCode;
 
     http.begin(client, url);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("x-api-key", ESP32_API_KEY);
+
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     // ... rest of code
     int httpCode = http.GET();
@@ -157,7 +160,8 @@ void saveUserData(String firstName, String lastName, String peekoName){
 }
 void createPeeko(String peekoCode, String peekoName) {
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi not connected!");
+    displayWifi("WiFi not connected!");
+    delay(1000);
     return;
   }
   WiFiClientSecure client;
@@ -166,6 +170,7 @@ void createPeeko(String peekoCode, String peekoName) {
   HTTPClient http;
   http.begin(client,"https://peeko-nine.vercel.app/api/v1/peeko/new"); // Replace with your server URL
   http.addHeader("Content-Type", "application/json");
+  http.addHeader("x-api-key", ESP32_API_KEY);
 
   // Create JSON body
   StaticJsonDocument<200> doc;
@@ -178,11 +183,42 @@ void createPeeko(String peekoCode, String peekoName) {
   int httpResponseCode = http.POST(requestBody);
 
   if (httpResponseCode > 0) {
-    String response = http.getString();
-    Serial.println("Response: " + response);
+  String response = http.getString();
+  Serial.println("Response: " + response);
+
+  StaticJsonDocument<200> resDoc;
+  DeserializationError error = deserializeJson(resDoc, response);
+
+  if (!error) {
+    bool success = resDoc["success"] | false;
+
+    if (success) {
+    const char* firstName = resDoc["peeko"]["user"]["firstName"] | "";
+    const char* lastName  = resDoc["peeko"]["user"]["lastName"]  | "";
+
+    String displayName = "Device Registered";
+
+    if (strlen(firstName) || strlen(lastName)) {
+        displayName = String("Welcome ") + firstName + " " + lastName;
+    }
+
+    displayWifi(displayName);
+    delay(2000);
+    ESP.restart();
+    } else {
+      displayWifi("Registration Failed");
+    }
   } else {
-    Serial.println("Error on POST: " + String(httpResponseCode));
+    Serial.print("JSON parse failed: ");
+    Serial.println(error.c_str());
+    displayWifi("Invalid Server Response");
   }
+
+} else {
+  Serial.println("Error on POST: " + String(httpResponseCode));
+  displayWifi("Network Error");
+}
+
 
   http.end();
 }
@@ -255,6 +291,9 @@ void fetchPeekoMood(const String &peekoCode, void (*callback)(String mood)) {
 
     String url = "https://peeko-nine.vercel.app/api/v1/peeko/" + peekoCode;
     http.begin(client, url);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("x-api-key", ESP32_API_KEY);
+
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     http.setTimeout(10000);
 
@@ -310,10 +349,13 @@ void fetchIncomingMessage(const String &peekoCode) {
 
     String url = "https://peeko-nine.vercel.app/api/v1/message/open/" + peekoCode;
     http.begin(client, url);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("x-api-key", ESP32_API_KEY);
+    
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     http.setTimeout(10000);
 
-    int httpCode = http.PATCH({});
+    int httpCode = http.sendRequest("PATCH", "{}");
 
     if (httpCode == HTTP_CODE_OK) {
         String payload = http.getString();
@@ -357,7 +399,7 @@ void fetchIncomingMessage(const String &peekoCode) {
         }
 
     } else {
-        messageStart("HTTP error",String(httpCode));
+        displayWifi("HTTP error "+String(httpCode));
     }
 
     http.end();

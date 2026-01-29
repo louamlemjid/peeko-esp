@@ -10,6 +10,7 @@
 #include <FS.h>
 #include <SPIFFS.h>
 #include "updatePeeko.h"
+#include "battery.h"
 
 PeekoUpdate peekoUpdater;
 
@@ -29,6 +30,9 @@ String lastName = "";
 String peekoName = "";
 
 unsigned long lastFetch = 0;
+
+//==== Battery =====
+Battery battery(0);
 
 //==== PeekoDoro ====
 PeekoDoro peekoDoro;
@@ -84,7 +88,8 @@ void setup() {
     Serial.begin(115200);
     peekoMoodSensor.begin();
     pinMode(SPEAKER_PIN, OUTPUT);
-     
+    battery.begin();
+
     displayInit();
     EEPROM.begin(EEPROM_SIZE);
     
@@ -122,7 +127,7 @@ void setup() {
 
             displayWifi("Wi-Fi Connected!");
             // fetchAnimationLink(peekoCode);
-            peekoUpdater.loadInformations();
+            
             initTime();
             fetchPeekoMood(peekoCode, displayMoodCallback);
             delay(2000); 
@@ -144,6 +149,8 @@ void setup() {
     firstName = readStringFromEEPROM(EEPROM_ADDR_FIRSTNAME, MAX_LEN);
     lastName = readStringFromEEPROM(EEPROM_ADDR_LASTNAME, MAX_LEN);
 
+    peekoUpdater.loadInformations();
+    
     if(peekoName && firstName && lastName){
         displayGreeting(firstName,lastName,peekoName);
         delay(5000);
@@ -154,11 +161,7 @@ void setup() {
 // ===== Main loop =====
 void loop() {
     server.handleClient();
-    if(digitalRead(1) == HIGH){
     
-        displayWifi("1");
-        delay(3000);
-    }
     
     // Fetch Peeko mood every 20 seconds
     if (millis() - lastFetch > 30000 && peekoCode.length() > 0 && WiFi.status() == WL_CONNECTED) {
@@ -170,4 +173,5 @@ void loop() {
     peekoSound.update();
     // peekoMoodSensor.update();
     peekoDoro.update();
+    battery.update();
 }

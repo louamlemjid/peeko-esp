@@ -42,21 +42,23 @@ bool connectToWiFi(const String& ssid, const String& password) {
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid.c_str(), password.c_str());
 
-  Serial.print("Connecting to WiFi");
+  displayWifiIcon();
   unsigned long startAttemptTime = millis();
 
   while (WiFi.status() != WL_CONNECTED &&
          millis() - startAttemptTime < 15000) { // 15s timeout
     delay(500);
-    Serial.print(".");
+    
   }
 
   if (WiFi.status() == WL_CONNECTED) {
     displayWifi("Wi-Fi Connected!");
+    delay(1000);
     return true;
   }
 
-  Serial.println("\nWiFi connection failed");
+  displayWifi("WiFi connection failed");
+  delay(1000);
   return false;
 }
 
@@ -85,7 +87,7 @@ void saveWiFiConfig(String ssid, String password, String code) {
     }
 
     EEPROM.commit();
-    Serial.println("Wi-Fi and Peeko config saved!");
+    
 }
 
 
@@ -101,14 +103,16 @@ void webInit() {
       String password = server.arg("password");
       String code = server.arg("code");
 
-      messageStart("Wifi credentials",ssid + password + code);
+      displayWifi("Wifi credentials "+ssid + password + code);
+      delay(1000);
       saveWiFiConfig(ssid, password, code);
 
       // 🔑 Connect before createPeeko
       if (connectToWiFi(ssid, password)) {
+        
         createPeeko(code);
-        server.send(200, "text/html",
-          "<h2>WiFi connected & device registered! You can reboot.</h2>");
+        
+        
       } else {
         server.send(500, "text/html",
           "<h2>WiFi connection failed. Check credentials.</h2>");
